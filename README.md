@@ -20,10 +20,11 @@
 `start.bat` をダブルクリック → http://localhost:8766
 
 ## 段階
-1. 🔶 書く・一覧・検索・写真/PDF添付（画面はお試し版で動作確認済み）
-   - ⬜ Supabaseで `supabase/schema.sql` を実行
-   - ⬜ Supabaseの Authentication → URL Configuration に `http://localhost:8766` と公開URLを登録
-   - ⬜ GitHub Pages で公開（スマホ用）
+1. ✅ 書く・一覧・検索・写真/PDF添付（2026-10-18 スマホで保存を本人が確認）
+   - ✅ Supabaseで `supabase/schema.sql` 実行済み
+   - ✅ Redirect URLs に `http://localhost:8766/**` と `https://nori-taka.github.io/memo-app/**` を登録済み
+   - ✅ 公開: https://nori-taka.github.io/memo-app/ （リポジトリ https://github.com/nori-taka/memo-app 。公開はコードだけ。`git push` で自動再公開）
+   - ⬜ PCでの共有確認・写真付き保存の確認
 2. ⬜ ゾフィー用の書き出し: メモを `content/メモ/` にMarkdown＋添付ファイルで書き出すスクリプト
 3. ⬜ 既存の `content/読書ノート/2026.md` を取り込む
 

@@ -68,6 +68,7 @@
   <header>
     <div class="bar">
       <h1>読書・日記メモ</h1>
+      <button id="export" class="hidden" title="メモをMarkdownにして content/メモ/ へ書き出す">💾 ゾフィー用に書き出す</button>
       <button id="logout" class="hidden">ログアウト</button>
     </div>
     <input type="text" class="search" id="q" placeholder="タイトル・本文を検索">
@@ -261,6 +262,70 @@ $("#del").onclick = async () => {
   catch (e) { toast("削除に失敗: " + (e.message || e)); }
 };
 
+// ---------- ゾフィー用の書き出し（PCのChrome/Edgeのみ）----------
+// 選んだフォルダ（content/メモ/）に、1メモ=1つのMarkdown＋files/（写真・PDF）＋INDEX.md を書く。
+// ファイル名は「日付_IDの先頭8桁.md」で固定（タイトルを直しても増えない）。削除したメモのファイルは消さない。
+const idb = () => new Promise((res, rej) => {
+  const r = indexedDB.open("memo-app", 1);
+  r.onupgradeneeded = () => r.result.createObjectStore("kv");
+  r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+});
+const kvGet = async (k) => { const db = await idb(); return new Promise((res) => { const q = db.transaction("kv").objectStore("kv").get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(null); }); };
+const kvPut = async (k, v) => { const db = await idb(); return new Promise((res) => { const t = db.transaction("kv", "readwrite"); t.objectStore("kv").put(v, k); t.oncomplete = res; t.onerror = res; }); };
+async function writeText(dir, name, text) {
+  const w = await (await dir.getFileHandle(name, { create: true })).createWritable(); await w.write(text); await w.close();
+}
+async function exists(dir, name) { try { await dir.getFileHandle(name); return true; } catch { return false; } }
+const baseName = (p) => p.split("/").pop();
+const memoFile = (m) => `${fmt(m.created_at)}_${m.id.slice(0, 8)}.md`;
+function memoToMd(m) {
+  const kindJa = m.kind === "read" ? "読書" : "日記";
+  const atts = (m.attachments || []).map((a) => {
+    const f = "files/" + baseName(a.path);
+    return (a.type || "").startsWith("image/") ? `- ![${a.name}](${f})` : `- [${a.name}](${f})`;
+  });
+  return ["---", `id: ${m.id}`, `kind: ${kindJa}`, `book: ${JSON.stringify(m.book || "")}`,
+    `date: ${fmt(m.created_at)}`, `updated: ${m.updated_at}`, "---", "", `# ${autoTitle(m)}`, "",
+    m.body.trim(), ...(atts.length ? ["", "## 添付", ...atts] : []), ""].join("\n");
+}
+async function exportAll(dir, items, getUrl) {
+  const filesDir = await dir.getDirectoryHandle("files", { create: true });
+  let nFiles = 0;
+  for (const m of items) {
+    await writeText(dir, memoFile(m), memoToMd(m));
+    for (const a of m.attachments || []) {
+      const n = baseName(a.path);
+      if (await exists(filesDir, n)) continue;
+      const blob = await (await fetch(await getUrl(a.path))).blob();
+      const w = await (await filesDir.getFileHandle(n, { create: true })).createWritable(); await w.write(blob); await w.close();
+      nFiles++;
+    }
+  }
+  const cell = (s) => String(s).replace(/\|/g, "／").replace(/\n/g, " ");
+  const idx = ["# メモ 索引（自動生成・上書きされます）", "",
+    "> 読書・日記メモアプリからの書き出し。直接編集しない（アプリで直して、もう一度書き出す）。", "",
+    "| 日付 | 種類 | タイトル | 書名 | ファイル |", "|---|---|---|---|---|",
+    ...items.map((m) => `| ${fmt(m.created_at)} | ${m.kind === "read" ? "読書" : "日記"} | ${cell(autoTitle(m))} | ${cell(m.book || "")} | [${memoFile(m)}](${memoFile(m)}) |`), ""];
+  await writeText(dir, "INDEX.md", idx.join("\n"));
+  return { memos: items.length, files: nFiles };
+}
+$("#export").onclick = async () => {
+  const btn = $("#export"); btn.disabled = true;
+  try {
+    let dir = await kvGet("exportDir");
+    if (dir && (await dir.requestPermission({ mode: "readwrite" })) !== "granted") dir = null;
+    if (!dir) {
+      toast("書き出し先に content/メモ フォルダを選んでください");
+      dir = await window.showDirectoryPicker({ mode: "readwrite" });
+      await kvPut("exportDir", dir);
+    }
+    await reload();
+    const r = await exportAll(dir, memos, (p) => store.fileUrl(p));
+    toast(`書き出しました（メモ${r.memos}件・新しい添付${r.files}件）`);
+  } catch (e) { if (e.name !== "AbortError") toast("書き出せませんでした: " + (e.message || e)); }
+  btn.disabled = false;
+};
+
 // ---------- 起動 ----------
 (async function () {
   try {
@@ -277,6 +342,7 @@ $("#del").onclick = async () => {
   } catch (e) { document.body.innerHTML = `<p class="msg">起動できませんでした: ${esc(e.message || String(e))}</p>`; return; }
   $("#app").classList.remove("hidden");
   if (store.mode === "cloud") { $("#logout").classList.remove("hidden"); $("#logout").onclick = () => store.logout(); }
+  if (window.showDirectoryPicker) $("#export").classList.remove("hidden");
   else document.title = "読書・日記メモ（お試し版）";
   await reload();
 })();
