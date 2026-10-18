@@ -25,8 +25,11 @@
    - ✅ Redirect URLs に `http://localhost:8766/**` と `https://nori-taka.github.io/memo-app/**` を登録済み
    - ✅ 公開: https://nori-taka.github.io/memo-app/ （リポジトリ https://github.com/nori-taka/memo-app 。公開はコードだけ。`git push` で自動再公開）
    - ⬜ PCでの共有確認・写真付き保存の確認
-2. ⬜ ゾフィー用の書き出し: メモを `content/メモ/` にMarkdown＋添付ファイルで書き出すスクリプト
-3. ⬜ 既存の `content/読書ノート/2026.md` を取り込む
+2. 🔶 ゾフィー用の書き出し（2026-10-18 実装・公開済み。ロジックはダミーで確認、実フォルダでの初回書き出しは本人確認待ち）
+   - PCのChrome/Edgeで、画面上の「💾 ゾフィー用に書き出す」→ 初回だけ `content/メモ/` を選ぶ（以降は許可の確認だけ）
+   - 出力: `content/メモ/日付_IDの先頭8桁.md`（1メモ1ファイル）＋ `files/`（写真・PDF）＋ `INDEX.md`（自動生成・上書き）
+   - 削除したメモのファイルは自動では消さない。スマホには出ないボタン
+3. ⬜ 既存の `content/読書ノート/2026.md`（1冊のみ）はアプリに貼り付けて移す
 
 ## 秘密情報
 - `web/config.js` に入れてよいのは anon key（公開前提のキー）だけ。service_role key は入れない

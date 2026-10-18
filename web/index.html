@@ -265,6 +265,7 @@ $("#del").onclick = async () => {
 // ---------- ゾフィー用の書き出し（PCのChrome/Edgeのみ）----------
 // 選んだフォルダ（content/メモ/）に、1メモ=1つのMarkdown＋files/（写真・PDF）＋INDEX.md を書く。
 // ファイル名は「日付_IDの先頭8桁.md」で固定（タイトルを直しても増えない）。削除したメモのファイルは消さない。
+const EXPORT_DIR = "メモ";
 const idb = () => new Promise((res, rej) => {
   const r = indexedDB.open("memo-app", 1);
   r.onupgradeneeded = () => r.result.createObjectStore("kv");
@@ -313,10 +314,16 @@ $("#export").onclick = async () => {
   const btn = $("#export"); btn.disabled = true;
   try {
     let dir = await kvGet("exportDir");
-    if (dir && (await dir.requestPermission({ mode: "readwrite" })) !== "granted") dir = null;
+    if (dir && (dir.name !== EXPORT_DIR || (await dir.requestPermission({ mode: "readwrite" })) !== "granted")) dir = null;
     if (!dir) {
-      toast("書き出し先に content/メモ フォルダを選んでください");
+      toast(`書き出し先に「${EXPORT_DIR}」フォルダ（content/${EXPORT_DIR}）を選んでください`);
       dir = await window.showDirectoryPicker({ mode: "readwrite" });
+      // 既存のノートを上書きしないための安全装置: フォルダ名と、INDEX.md が書き出し由来かを確認する
+      if (dir.name !== EXPORT_DIR) { toast(`「${dir.name}」ではなく「${EXPORT_DIR}」を選んでください。何も書いていません`); btn.disabled = false; return; }
+      try {
+        const t = await (await (await dir.getFileHandle("INDEX.md")).getFile()).text();
+        if (!t.includes("自動生成")) { toast("このフォルダの INDEX.md は書き出し用ではありません。何も書いていません"); btn.disabled = false; return; }
+      } catch {}
       await kvPut("exportDir", dir);
     }
     await reload();
