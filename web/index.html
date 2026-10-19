@@ -7,10 +7,10 @@
 <style>
   :root {
     --bg: #faf8f4; --card: #fff; --ink: #2b2723; --sub: #8a8178; --line: #e8e2d8;
-    --accent: #b5651d; --read: #2f6f5e; --diary: #9a4f7a;
+    --accent: #b5651d; --read: #2f6f5e; --diary: #9a4f7a; --topic: #3d6fa5;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #1d1b19; --card: #272421; --ink: #ece7df; --sub: #9b928a; --line: #3a3631; --accent: #e0954f; --read: #5fb59d; --diary: #d98cb9; }
+    :root { --bg: #1d1b19; --card: #272421; --ink: #ece7df; --sub: #9b928a; --line: #3a3631; --accent: #e0954f; --read: #5fb59d; --diary: #d98cb9; --topic: #6fa3d9; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.7 -apple-system, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; }
@@ -33,7 +33,7 @@
   .item .t { font-weight: 600; margin: 2px 0; overflow-wrap: anywhere; }
   .item .s { color: var(--sub); font-size: 14px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
   .badge { font-size: 12px; padding: 0 8px; border-radius: 999px; color: #fff; }
-  .badge.read { background: var(--read); } .badge.diary { background: var(--diary); }
+  .badge.read { background: var(--read); } .badge.diary { background: var(--diary); } .badge.topic { background: var(--topic); }
   .empty, .msg { color: var(--sub); text-align: center; padding: 32px 0; }
   .fab { position: fixed; right: 20px; bottom: 24px; border-radius: 999px; padding: 14px 22px; box-shadow: 0 4px 14px rgba(0,0,0,.25); z-index: 6; }
   /* editor */
@@ -76,6 +76,7 @@
       <button class="chip on" data-k="">すべて</button>
       <button class="chip" data-k="read">読書</button>
       <button class="chip" data-k="diary">日記</button>
+      <button class="chip" data-k="topic">トピック</button>
     </div>
   </header>
   <div id="list"></div>
@@ -91,6 +92,7 @@
     <div class="row seg" id="kindSeg">
       <button data-k="read" class="on">読書</button>
       <button data-k="diary">日記</button>
+      <button data-k="topic">トピック</button>
     </div>
     <div class="row" id="bookRow"><input type="text" id="book" placeholder="書名（わかれば）"></div>
     <div class="row"><input type="text" id="title" placeholder="タイトル（空なら本文の1行目）"></div>
@@ -114,7 +116,10 @@
 <script src="store.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
+const KIND = { read: "読書", diary: "日記", topic: "トピック" };
 let memos = [], filterKind = "", cur = null, newPaths = [], removedPaths = [];
+// 新規メモの初期の種類: 絞り込み中ならその種類、なければ前回使った種類
+const lastKind = () => { let k = ""; try { k = localStorage.getItem("memo-app-kind") || ""; } catch {} return KIND[filterKind] ? filterKind : (KIND[k] ? k : "read"); };
 
 const toast = (t) => { const e = $("#toast"); e.textContent = t; e.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => e.style.display = "none", 2200); };
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -128,7 +133,7 @@ function render() {
     (!q || (m.title + "\n" + m.book + "\n" + m.body).toLowerCase().includes(q)));
   $("#list").innerHTML = rows.length ? rows.map((m) => `
     <button class="item" data-id="${m.id}">
-      <div class="meta"><span class="badge ${m.kind}">${m.kind === "read" ? "読書" : "日記"}</span>${fmt(m.created_at)}
+      <div class="meta"><span class="badge ${m.kind}">${KIND[m.kind] || m.kind}</span>${fmt(m.created_at)}
         ${m.book ? "・『" + esc(m.book) + "』" : ""}${(m.attachments || []).length ? " 📎" + m.attachments.length : ""}</div>
       <div class="t">${esc(autoTitle(m))}</div>
       <div class="s">${esc(m.body.trim().split("\n").slice(m.title.trim() ? 0 : 1).join(" "))}</div>
@@ -163,7 +168,7 @@ function openEditor(m) {
   if (m) cur = JSON.parse(JSON.stringify(m));
   else {
     let d = null; try { d = JSON.parse(localStorage.getItem(DRAFT) || "null"); } catch {}
-    cur = d && d.id ? d : { id: crypto.randomUUID(), kind: "read", title: "", book: "", body: "", attachments: [], created_at: new Date().toISOString() };
+    cur = d && d.id ? d : { id: crypto.randomUUID(), kind: lastKind(), title: "", book: "", body: "", attachments: [], created_at: new Date().toISOString() };
     cur._isNew = true;
   }
   setKind(cur.kind);
@@ -249,6 +254,7 @@ $("#save").onclick = async () => {
   $("#save").disabled = true;
   try {
     await store.save(row);
+    try { localStorage.setItem("memo-app-kind", row.kind); } catch {}
     if (removedPaths.length) await store.removeFiles(removedPaths);
     if (cur._isNew) localStorage.removeItem(DRAFT);
     newPaths = []; removedPaths = [];
@@ -280,7 +286,7 @@ async function exists(dir, name) { try { await dir.getFileHandle(name); return t
 const baseName = (p) => p.split("/").pop();
 const memoFile = (m) => `${fmt(m.created_at)}_${m.id.slice(0, 8)}.md`;
 function memoToMd(m) {
-  const kindJa = m.kind === "read" ? "読書" : "日記";
+  const kindJa = KIND[m.kind] || m.kind;
   const atts = (m.attachments || []).map((a) => {
     const f = "files/" + baseName(a.path);
     return (a.type || "").startsWith("image/") ? `- ![${a.name}](${f})` : `- [${a.name}](${f})`;
@@ -306,7 +312,7 @@ async function exportAll(dir, items, getUrl) {
   const idx = ["# メモ 索引（自動生成・上書きされます）", "",
     "> 読書・日記メモアプリからの書き出し。直接編集しない（アプリで直して、もう一度書き出す）。", "",
     "| 日付 | 種類 | タイトル | 書名 | ファイル |", "|---|---|---|---|---|",
-    ...items.map((m) => `| ${fmt(m.created_at)} | ${m.kind === "read" ? "読書" : "日記"} | ${cell(autoTitle(m))} | ${cell(m.book || "")} | [${memoFile(m)}](${memoFile(m)}) |`), ""];
+    ...items.map((m) => `| ${fmt(m.created_at)} | ${KIND[m.kind] || m.kind} | ${cell(autoTitle(m))} | ${cell(m.book || "")} | [${memoFile(m)}](${memoFile(m)}) |`), ""];
   await writeText(dir, "INDEX.md", idx.join("\n"));
   return { memos: items.length, files: nFiles };
 }
