@@ -7,10 +7,10 @@
 <style>
   :root {
     --bg: #faf8f4; --card: #fff; --ink: #2b2723; --sub: #8a8178; --line: #e8e2d8;
-    --accent: #b5651d; --read: #2f6f5e; --diary: #9a4f7a; --topic: #3d6fa5;
+    --accent: #b5651d; --read: #2f6f5e; --diary: #9a4f7a; --topic: #3d6fa5; --create: #a8872a;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #1d1b19; --card: #272421; --ink: #ece7df; --sub: #9b928a; --line: #3a3631; --accent: #e0954f; --read: #5fb59d; --diary: #d98cb9; --topic: #6fa3d9; }
+    :root { --bg: #1d1b19; --card: #272421; --ink: #ece7df; --sub: #9b928a; --line: #3a3631; --accent: #e0954f; --read: #5fb59d; --diary: #d98cb9; --topic: #6fa3d9; --create: #d9b95f; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.7 -apple-system, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; }
@@ -33,7 +33,7 @@
   .item .t { font-weight: 600; margin: 2px 0; overflow-wrap: anywhere; }
   .item .s { color: var(--sub); font-size: 14px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
   .badge { font-size: 12px; padding: 0 8px; border-radius: 999px; color: #fff; }
-  .badge.read { background: var(--read); } .badge.diary { background: var(--diary); } .badge.topic { background: var(--topic); }
+  .badge.read { background: var(--read); } .badge.diary { background: var(--diary); } .badge.topic { background: var(--topic); } .badge.create { background: var(--create); }
   .empty, .msg { color: var(--sub); text-align: center; padding: 32px 0; }
   .fab { position: fixed; right: 20px; bottom: 24px; border-radius: 999px; padding: 14px 22px; box-shadow: 0 4px 14px rgba(0,0,0,.25); z-index: 6; }
   /* editor */
@@ -77,6 +77,7 @@
       <button class="chip" data-k="read">読書</button>
       <button class="chip" data-k="diary">日記</button>
       <button class="chip" data-k="topic">トピック</button>
+      <button class="chip" data-k="create">創作</button>
     </div>
   </header>
   <div id="list"></div>
@@ -93,6 +94,7 @@
       <button data-k="read" class="on">読書</button>
       <button data-k="diary">日記</button>
       <button data-k="topic">トピック</button>
+      <button data-k="create">創作</button>
     </div>
     <div class="row" id="bookRow"><input type="text" id="book" placeholder="書名（わかれば）"></div>
     <div class="row"><input type="text" id="title" placeholder="タイトル（空なら本文の1行目）"></div>
@@ -116,7 +118,7 @@
 <script src="store.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
-const KIND = { read: "読書", diary: "日記", topic: "トピック" };
+const KIND = { read: "読書", diary: "日記", topic: "トピック", create: "創作" };
 let memos = [], filterKind = "", cur = null, newPaths = [], removedPaths = [];
 // 新規メモの初期の種類: 絞り込み中ならその種類、なければ前回使った種類
 const lastKind = () => { let k = ""; try { k = localStorage.getItem("memo-app-kind") || ""; } catch {} return KIND[filterKind] ? filterKind : (KIND[k] ? k : "read"); };
